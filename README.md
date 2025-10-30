@@ -1,6 +1,6 @@
 Image Search Using AI Object Detection, CDN & Elasticsearch
 
-This workflow lets you build a smart image search system powered by AI and automation — no manual tagging needed! It detects, crops, and indexes objects from images so you can search them easily later.
+This workflow lets you build a smart image search system powered by AI and automation no manual tagging needed! It detects, crops, and indexes objects from images so you can search them easily later.
 
  What It Does
 
