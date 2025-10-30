@@ -1,0 +1,421 @@
+{
+  "name": "Image Search Using AI Object Detection CDN and ElasticSearchBuild",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "2d0711f1-2a68-4766-94e5-d84908b31528",
+      "name": "When clicking \"Test workflow\"",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -896,
+        592
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.source_image }}",
+        "options": {}
+      },
+      "id": "50ba096d-daf3-4d67-b528-fbf9777c6d93",
+      "name": "Fetch Source Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -576,
+        592
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "result",
+        "options": {}
+      },
+      "id": "ea015967-7932-478e-aa75-e70a2e37292d",
+      "name": "Split Out Results Only",
+      "type": "n8n-nodes-base.splitOut",
+      "position": [
+        -160,
+        592
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "367d83ef-8ecf-41fe-858c-9bfd78b0ae9f",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              },
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 0.9
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e8afa2ba-e1d2-4f58-87c7-8593dc904c7e",
+      "name": "Filter Score >= 0.9",
+      "type": "n8n-nodes-base.filter",
+      "position": [
+        32,
+        592
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "crop",
+        "width": "={{ $json.box.xmax - $json.box.xmin }}",
+        "height": "={{ $json.box.ymax - $json.box.ymin }}",
+        "positionX": "={{ $json.box.xmin }}",
+        "positionY": "={{ $json.box.ymin }}",
+        "options": {
+          "fileName": "={{ $binary.data.fileName.split('.')[0].urlEncode()+'-'+$json.label.urlEncode() + '-' + $itemIndex }}.jpg",
+          "format": "jpeg"
+        }
+      },
+      "id": "5dd99265-4e92-46a3-82d4-2aefa72db114",
+      "name": "Crop Object From Image",
+      "type": "n8n-nodes-base.editImage",
+      "position": [
+        496,
+        592
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9e95d951-8530-4a80-bd00-6bb55623a71f",
+              "name": "CLOUDFLARE_ACCOUNT_ID",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "66807a90-63a1-4d4e-886e-e8abf3019a34",
+              "name": "model",
+              "type": "string",
+              "value": "@cf/facebook/detr-resnet-50"
+            },
+            {
+              "id": "a13ccde6-e6e3-46f4-afa3-2134af7bc765",
+              "name": "source_image",
+              "type": "string",
+              "value": "https://images.pexels.com/photos/2293367/pexels-photo-2293367.jpeg?auto=compress&cs=tinysrgb&w=600"
+            },
+            {
+              "id": "0734fc55-b414-47f7-8b3e-5c880243f3ed",
+              "name": "elasticsearch_index",
+              "type": "string",
+              "value": "n8n-image-search"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "65652466-f899-4a76-953d-a2606aa1c79b",
+      "name": "Set Variables",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -736,
+        592
+      ],
+      "typeVersion": 3.3
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.cloudflare.com/client/v4/accounts/{{ $('Set Variables').item.json.CLOUDFLARE_ACCOUNT_ID }}/ai/run/{{ $('Set Variables').item.json.model }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "cloudflareApi",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "5052b42a-76b1-4691-8d80-e96791368742",
+      "name": "Use Detr-Resnet-50 Object Classification",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -352,
+        592
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/daglih2g8/image/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "upload_preset",
+              "value": "n8n-workflows-preset"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "38b2b7fd-6752-41b4-8903-2069543463bf",
+      "name": "Upload to Cloudinary",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        800,
+        592
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "indexId": "={{ $('Set Variables').item.json.elasticsearch_index }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "image_url",
+              "fieldValue": "={{ $json.secure_url.replace('upload','upload/f_auto,q_auto') }}"
+            },
+            {
+              "fieldId": "source_image_url",
+              "fieldValue": "={{ $('Set Variables').item.json.source_image }}"
+            },
+            {
+              "fieldId": "label",
+              "fieldValue": "={{ $('Crop Object From Image').item.json.label }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ JSON.stringify(Object.assign($('Crop Object From Image').item.json, { filename: $json.original_filename })) }}"
+            }
+          ]
+        },
+        "additionalFields": {},
+        "options": {}
+      },
+      "id": "d396ff07-50c4-410b-8d70-4afcecba1c82",
+      "name": "Create Docs In Elasticsearch",
+      "type": "n8n-nodes-base.elasticsearch",
+      "position": [
+        1008,
+        592
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 381.6388867600897,
+        "width": 541.1455500767354,
+        "color": 7
+      },
+      "id": "5026440f-6165-4b86-8603-53d8a5aa24ce",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -976,
+        432
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 437.4680103498263,
+        "width": 579.7748008857744,
+        "color": 7
+      },
+      "id": "8348eb59-d5be-45fc-be81-113c1c895050",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -400,
+        416
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 371.9272151757119,
+        "width": 466.35460775498495,
+        "color": 7
+      },
+      "id": "4de75ce3-e2b5-46d1-ada9-fc1e83bc9161",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        208,
+        448
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 386.06196032653685,
+        "width": 478.20345439832454,
+        "color": 7
+      },
+      "id": "6c57a6b2-44b0-4fc2-95cc-31dab3a5cf5b",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        704,
+        448
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Set Variables').item.json.source_image }}",
+        "options": {}
+      },
+      "id": "04726538-e9c9-4d42-a25e-eaf9d423b7ac",
+      "name": "Fetch Source Image Again",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        288,
+        592
+      ],
+      "typeVersion": 4.2
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Set Variables": {
+      "main": [
+        [
+          {
+            "node": "Fetch Source Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Source Image": {
+      "main": [
+        [
+          {
+            "node": "Use Detr-Resnet-50 Object Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Score >= 0.9": {
+      "main": [
+        [
+          {
+            "node": "Fetch Source Image Again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Cloudinary": {
+      "main": [
+        [
+          {
+            "node": "Create Docs In Elasticsearch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crop Object From Image": {
+      "main": [
+        [
+          {
+            "node": "Upload to Cloudinary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out Results Only": {
+      "main": [
+        [
+          {
+            "node": "Filter Score >= 0.9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Source Image Again": {
+      "main": [
+        [
+          {
+            "node": "Crop Object From Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking \"Test workflow\"": {
+      "main": [
+        [
+          {
+            "node": "Set Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Detr-Resnet-50 Object Classification": {
+      "main": [
+        [
+          {
+            "node": "Split Out Results Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "226e4cc5-f27d-411d-b2cd-ce3d100fb5d3",
+  "meta": {
+    "instanceId": "e3f406f51004a0182ea80d7a1cb4074f38211bb43a5013ef1c4c708754af7a35"
+  },
+  "id": "K1KYNtsTAgpWGypn",
+  "tags": []
+}
